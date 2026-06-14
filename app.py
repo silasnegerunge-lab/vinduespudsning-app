@@ -1,4 +1,4 @@
-﻿import streamlit as st
+Ã¯Â»Â¿import streamlit as st
 import folium
 from streamlit_folium import st_folium
 from qrcode import QRCode
@@ -6,7 +6,7 @@ from io import BytesIO
 
 st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("?? Vinduespudsning Prisberegner")
-st.write("Indtast en adresse for at få BBR-estimat og pris")
+st.write("Indtast en adresse for at fÃƒÂ¥ BBR-estimat og pris")
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
@@ -31,7 +31,7 @@ if st.button("?? Beregn pris", type="primary"):
             pris_ude = antal * pris_pr_rude_ude + (etager - 1) * etage_tillaeg
             pris_begge = antal * pris_pr_rude_begge + (etager - 1) * etage_tillaeg * 1.8
             
-            st.success("? Beregning færdig!")
+            st.success("? Beregning fÃƒÂ¦rdig!")
             
             col1, col2 = st.columns(2)
             with col1:
