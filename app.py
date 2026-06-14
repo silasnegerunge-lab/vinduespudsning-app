@@ -32,11 +32,11 @@ if st.button("🔍 Beregn pris", type="primary"):
                 
                 # SIKRING: Tjek at DAWA faktisk fandt og returnerede en liste med adresser
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # DETTE RETTEDE FEJLEN: Hent det første rigtige element i listen!
+                    api_data = response[0]  # RETTELSE: Henter det første element ud af listen (index 0)
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # DAWA returnerer [længdegrad, breddegrad]. Folium skal bruge [breddegrad, længdegrad]
+                    # DAWA returnerer [længdegrad, breddegrad]. Folium skal bruge [breddegrad, længdegrad] -> Vend dem om!
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
                     # 2. Opsæt data baseret på den officielle adressebetegnelse
