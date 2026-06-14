@@ -59,7 +59,7 @@ if st.session_state.beregnet:
     st_folium(m, width=700, height=300, key="kort_visning")
     
     st.subheader("📱 QR-kode til bilen")
-    qr_data = "https://streamlit.app"
+    qr_data = "https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/"
     
     qr = QRCode(version=1, box_size=10, border=4)
     qr.add_data(qr_data)
