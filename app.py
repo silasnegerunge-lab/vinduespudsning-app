@@ -5,6 +5,7 @@ from qrcode import QRCode
 from io import BytesIO
 import requests
 import urllib.parse
+import json
 
 st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
@@ -37,60 +38,84 @@ if st.button("🔍 Beregn pris", type="primary"):
                     lat = float(koordinater[1])
                     st.session_state.coords = [lat, lng]
                     
-                    # ✅ Hent BBR-data via husnummerkode (mere reliable)
-                    husnummerkode = api_data.get("husnummerkode", None)
+                    # ✅ DEBUG: Vis hvad vi hentede
                     etager = 2  # Standard værdi hvis BBR ikke findes
                     byg_type = "Parcelhus"  # Standard værdi
                     antal_vinduer = 24
                     debug_info = []
                     
+                    debug_info.append(f"📌 **Adresse fundet:** {api_data.get('adressebetegnelse', 'N/A')}")
+                    debug_info.append(f"📌 **ID:** {api_data.get('id', 'N/A')}")
+                    debug_info.append(f"📌 **Husnummerkode:** {api_data.get('husnummerkode', 'N/A')}")
+                    debug_info.append(f"📌 **Vejkode:** {adgangsadresse.get('vejkode', 'N/A')}")
+                    debug_info.append(f"📌 **Husnr:** {api_data.get('husnr', 'N/A')}")
+                    
+                    # ✅ Prøv at hente BBR-data
+                    husnummerkode = api_data.get("husnummerkode", None)
+                    
                     if husnummerkode:
                         try:
-                            # Alternativ 1: Prøv at hente via husnummer
+                            # Metode 1: Husnummerkode
                             bbr_url = f"https://api.dataforsyningen.dk/bbr?husnummerkode={husnummerkode}"
-                            bbr_response = requests.get(bbr_url, timeout=5).json()
-                            debug_info.append(f"✅ BBR husnummer API svar: {len(bbr_response)} records")
+                            debug_info.append(f"\n🔗 **BBR URL (husnummerkode):** {bbr_url}")
+                            bbr_response = requests.get(bbr_url, timeout=5)
+                            debug_info.append(f"📡 **HTTP Status:** {bbr_response.status_code}")
                             
-                            if bbr_response and len(bbr_response) > 0:
-                                bbr_data = bbr_response[0]
+                            bbr_json = bbr_response.json()
+                            debug_info.append(f"📦 **BBR respons type:** {type(bbr_json)}")
+                            debug_info.append(f"📦 **BBR respons length:** {len(bbr_json) if isinstance(bbr_json, list) else 'N/A'}")
+                            
+                            if isinstance(bbr_json, dict):
+                                debug_info.append(f"⚠️ **BBR returnerede objekt, ikke liste!**")
+                                debug_info.append(f"Keys: {list(bbr_json.keys())}")
+                            
+                            if bbr_json and len(bbr_json) > 0:
+                                bbr_data = bbr_json[0] if isinstance(bbr_json, list) else bbr_json
+                                debug_info.append(f"✅ **BBR data fundet**")
+                                debug_info.append(f"🏢 **BBR data keys:** {list(bbr_data.keys())}")
                                 
-                                # Hent etageantal
+                                # Prøv at hente etager
                                 if "etager" in bbr_data:
                                     etager = int(bbr_data.get("etager", 2))
-                                    debug_info.append(f"✅ Etager fra BBR: {etager}")
+                                    debug_info.append(f"✅ **Etager fra BBR:** {etager}")
+                                else:
+                                    debug_info.append(f"⚠️ **'etager' ikke i BBR data**")
                                 
-                                # Hent bygningstype
+                                # Prøv at hente bygningstype
                                 if "bbrkodenavn" in bbr_data:
                                     bbr_kode = bbr_data.get("bbrkodenavn", "").lower()
-                                    if "enfamilie" in bbr_kode or "villa" in bbr_kode:
-                                        byg_type = "Parcelhus"
-                                    elif "tofamilie" in bbr_kode:
-                                        byg_type = "Tofamiliehus"
-                                    else:
-                                        byg_type = "Erhverv / Lejlighed"
-                                    debug_info.append(f"✅ Bygningstype: {byg_type}")
+                                    debug_info.append(f"✅ **BBR type:** {bbr_kode}")
+                            else:
+                                debug_info.append(f"⚠️ **BBR returnerede tom liste/objekt**")
+                        
+                        except requests.exceptions.Timeout:
+                            debug_info.append(f"❌ **Timeout på BBR husnummerkode**")
+                        except json.JSONDecodeError as e:
+                            debug_info.append(f"❌ **BBR JSON parse fejl:** {str(e)}")
                         except Exception as e:
-                            debug_info.append(f"⚠️ BBR husnummer fejl: {str(e)}")
-                            
-                            # Alternativ 2: Prøv vejkodenavn
-                            try:
-                                vejkode = adgangsadresse.get("vejkode", None)
-                                husnr = api_data.get("husnr", None)
-                                if vejkode and husnr:
-                                    bbr_url2 = f"https://api.dataforsyningen.dk/bbr?vejkode={vejkode}&husnr={husnr}"
-                                    bbr_response2 = requests.get(bbr_url2, timeout=5).json()
-                                    debug_info.append(f"✅ BBR vejkode API svar: {len(bbr_response2)} records")
-                                    
-                                    if bbr_response2 and len(bbr_response2) > 0:
-                                        bbr_data2 = bbr_response2[0]
-                                        etager = int(bbr_data2.get("etager", 2))
-                                        debug_info.append(f"✅ Etager fra BBR (vejkode): {etager}")
-                            except Exception as e2:
-                                debug_info.append(f"⚠️ BBR vejkode fejl: {str(e2)}")
+                            debug_info.append(f"❌ **BBR husnummerkode fejl:** {type(e).__name__}: {str(e)}")
+                        
+                        # Metode 2: Vejkode + husnr
+                        try:
+                            vejkode = adgangsadresse.get("vejkode", None)
+                            husnr = api_data.get("husnr", None)
+                            if vejkode and husnr:
+                                bbr_url2 = f"https://api.dataforsyningen.dk/bbr?vejkode={vejkode}&husnr={husnr}"
+                                debug_info.append(f"\n🔗 **BBR URL (vejkode):** {bbr_url2}")
+                                bbr_response2 = requests.get(bbr_url2, timeout=5)
+                                debug_info.append(f"📡 **HTTP Status:** {bbr_response2.status_code}")
+                                
+                                bbr_json2 = bbr_response2.json()
+                                if bbr_json2 and len(bbr_json2) > 0:
+                                    bbr_data2 = bbr_json2[0]
+                                    etager = int(bbr_data2.get("etager", 2))
+                                    debug_info.append(f"✅ **Etager fra BBR (vejkode):** {etager}")
+                        except Exception as e:
+                            debug_info.append(f"⚠️ **BBR vejkode fejl:** {type(e).__name__}: {str(e)}")
                     
                     # Beregn antal vinduer baseret på etager
                     antal_vinduer = 12 if etager == 1 else (12 * etager)
-                    debug_info.append(f"📊 Antal vinduer beregnet: {antal_vinduer} (baseret på {etager} etager)")
+                    debug_info.append(f"\n📊 **Antal vinduer beregnet:** {antal_vinduer} (baseret på {etager} etager)")
                     
                     pris_pr_rude_ude = 28
                     pris_pr_rude_begge = 58
@@ -118,7 +143,7 @@ if st.button("🔍 Beregn pris", type="primary"):
                 st.error("API opslag tog for lang tid - prøv igen")
                 st.session_state.beregnet = False
             except Exception as e:
-                st.error(f"Der opstod en fejl: {str(e)}")
+                st.error(f"Der opstod en fejl: {type(e).__name__}: {str(e)}")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
@@ -138,9 +163,9 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
     # ✅ DEBUG INFO
-    with st.expander("🔧 Debug Information"):
+    with st.expander("🔧 DEBUG INFORMATION (Åbn for detaljer)"):
         for info in st.session_state.bbr.get("debug_info", []):
-            st.write(info)
+            st.markdown(info)
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
     m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
