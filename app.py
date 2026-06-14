@@ -8,7 +8,7 @@ import urllib.parse
 
 st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
-st.write("Indtast din adresse for at hente reelle BBR-data og beregne pris")
+st.write("Indtast din adresse for at få prisestimat og satellitvisning")
 
 # Opret appens hukommelse, hvis den ikke findes
 if "beregnet" not in st.session_state:
@@ -22,7 +22,7 @@ adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby"
 
 if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
-        with st.spinner("Forbinder til BBR og henter live data..."):
+        with st.spinner("Slår adresse op og beregner..."):
             # 1. Slå adressen op hos DAWA med sikker URL-kodning
             sikker_adresse = urllib.parse.quote(adresse)
             url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
@@ -31,48 +31,34 @@ if st.button("🔍 Beregn pris", type="primary"):
                 response = requests.get(url).json()
                 
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # Tag fat i den første adresse i listen
+                    api_data = response[0]  # Hent første adresse i listen korrekt
                     adgangsadresse = api_data.get("adgangsadresse", {})
-                    adgangsadresse_id = adgangsadresse.get("id")
                     
                     # DAWA returnerer [Længde, Bredde]. Folium og kort skal bruge [Bredde, Længde]
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
-                    # 2. Hent BBR-data via det rigtige bbrlight-endpoint hos Dataforsyningen
-                    bbr_url = f"https://dataforsyningen.dk{adgangsadresse_id}"
-                    bbr_response = requests.get(bbr_url).json()
+                    # 2. Intelligent prissætning og vinduesestimering baseret på adressetekst
+                    # Vi opsætter standardstørrelser, som ændrer sig automatisk hvis det er en stuelejlighed eller hus
+                    byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
+                    etager = 1 if "st" in adresse.lower() else 2
                     
-                    # Standardværdier hvis registeret fejler eller er tomt
-                    areal = 135
-                    etager = 1
-                    bygningstype = "Parcelhus"
-                    
-                    if bbr_response and isinstance(bbr_response, list) and len(bbr_response) > 0:
-                        bygning_data = bbr_response[0]
-                        # Hent det bebyggede areal eller det samlede areal fra BBR
-                        areal = bygning_data.get("bebyggetAreal", bygning_data.get("samletBygningsareal", 135))
-                        etager = bygning_data.get("antalEtager", 1)
-                        if not etager or etager < 1:
-                            etager = 1
-                    
-                    # 3. Beregn estimeret antal vinduer (industristandard: 1 vindue pr. 6 kvm)
-                    antal_vinduer = max(10, round(areal / 6))
+                    # Estimeret antal ruder tilpasset typen
+                    antal_vinduer = 12 if etager == 1 else 24
                     
                     # Prisstruktur
                     pris_pr_rude_ude = 28
                     pris_pr_rude_begge = 58
                     etage_tillaeg = 35
                     
-                    # Udregning baseret på BBR data
+                    # Udregning baseret på estimerede data
                     st.session_state.pris_ude = (antal_vinduer * pris_pr_rude_ude) + ((etager - 1) * etage_tillaeg)
                     st.session_state.pris_begge = (antal_vinduer * pris_pr_rude_begge) + ((etager - 1) * etage_tillaeg * 1.8)
                     
                     st.session_state.bbr = {
                         "adresse": api_data.get("adressebetegnelse", adresse),
-                        "bygningsareal": areal,
                         "etager": etager,
-                        "bygningstype": bygningstype,
+                        "bygningstype": byg_type,
                         "antal_vinduer_est": antal_vinduer
                     }
                     st.session_state.beregnet = True
@@ -80,14 +66,14 @@ if st.button("🔍 Beregn pris", type="primary"):
                     st.error("Kunne ikke finde adressen. Tjek venligst stavningen.")
                     st.session_state.beregnet = False
             except Exception as e:
-                st.error("Der opstod en fejl under synkronisering med BBR-registret.")
+                st.error("Der opstod en systemfejl under indlæsning.")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
 
 # Vis resultaterne permanent på skærmen efter beregning
 if st.session_state.beregnet and st.session_state.bbr:
-    st.success("✅ Officielle BBR-data indlæst!")
+    st.success("✅ Prisberegning fuldført!")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -95,10 +81,9 @@ if st.session_state.beregnet and st.session_state.bbr:
     with col2:
         st.metric("Ude + Indvendig", f"{int(st.session_state.pris_begge):,} kr")
         
-    st.subheader("Officielle BBR-oplysninger")
-    st.write(f"🏠 **Bygningsareal:** {st.session_state.bbr['bygningsareal']} m²")
+    st.subheader("Estimeret datagrundlag")
     st.write(f"🏢 **Antal etager:** {st.session_state.bbr['etager']}")
-    st.write(f"🧽 **Estimeret antal ruder ud fra m²:** {st.session_state.bbr['antal_vinduer_est']} stk.")
+    st.write(f"🧽 **Anslået antal ruder:** {st.session_state.bbr['antal_vinduer_est']} stk.")
     st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
