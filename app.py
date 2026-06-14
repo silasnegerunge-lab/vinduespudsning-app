@@ -10,35 +10,31 @@ st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
 st.write("Indtast din adresse for at få prisestimat og satellitvisning")
 
-# Opret appens hukommelse, hvis den ikke findes
 if "beregnet" not in st.session_state:
     st.session_state.beregnet = False
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
+    st.session_state.coords = [55.6760968, 12.5683371]
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
 if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
-        with st.spinner("Slår adresse op og beregner..."):
+        with st.spinner("Slår adresse op..."):
             sikker_adresse = urllib.parse.quote(adresse)
             url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
             
             try:
                 response = requests.get(url).json()
                 
-                # SIKRING: Tjek at DAWA returnerede en liste med resultater
                 if response and isinstance(response, list) and len(response) > 0:
-                    # NY FEJLSIKKER GENVEJ: pop(0) hiver den første adresse ud, så mit system ikke kan slette noget
-                    api_data = response.pop(0)
+                    api_data = response[0]
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # DAWA er [Længde, Bredde]. Vi trækker dem ud via pop(0) så de lander fejlfrit som [Bredde, Længde] til Folium
-                    lng = float(koordinater.pop(0))
-                    lat = float(koordinater.pop(0))
+                    lng = float(koordinater[0])
+                    lat = float(koordinater[1])
                     st.session_state.coords = [lat, lng]
                     
                     byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
@@ -60,7 +56,7 @@ if st.button("🔍 Beregn pris", type="primary"):
                     }
                     st.session_state.beregnet = True
                 else:
-                    st.error("Kunne ikke finde adressen. Tjek venligst stavningen.")
+                    st.error("Kunne ikke finde adressen.")
                     st.session_state.beregnet = False
             except Exception as e:
                 st.error("Der opstod en fejl under indlæsning af adressedata.")
@@ -95,7 +91,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     folium.Marker(st.session_state.coords, popup=st.session_state.bbr["adresse"]).add_to(m)
     st_folium(m, width=700, height=350, key="google_earth_visning")
     
-    st.subheader("📱 QR-kode til din bil (Linker til din forside)")
+    st.subheader("📱 QR-kode til din bil")
     hoved_hjemmeside = "https://streamlit.app"
     
     qr = QRCode(version=1, box_size=10, border=4)
