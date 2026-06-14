@@ -71,10 +71,9 @@ if st.session_state.beregnet:
     img.save(buf, format="PNG")
     st.image(buf.getvalue(), caption="Scan for tilbud")
     
-st.download_button(
-        label="⬇️ Download QR-kode",
-        data=buf.getvalue(),
-        file_name="qr_kode.png",
-        mime="image/png",
-        key="qr_download"
-    )
+# https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/
+    qr_link = "https://streamlit.app"
+    
+    qr = QRCode(version=1, box_size=10, border=4)
+    qr.add_data(qr_link)
+    qr.make(fit=True)
