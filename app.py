@@ -23,7 +23,7 @@ if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
         with st.spinner("Slår adresse op..."):
             sikker_adresse = urllib.parse.quote(adresse)
-            url = f"https://dataforsyningen.dk/rest/adresser?q={sikker_adresse}&per_side=1"
+            url = f"https://api.dataforsyningen.dk/adresser?q={sikker_adresse}&per_side=1"
             
             try:
                 response = requests.get(url).json()
@@ -33,7 +33,6 @@ if st.button("🔍 Beregn pris", type="primary"):
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # HER ER DEN RIGTIGE RETTELSE: Vi henter tallene via rå indeks [0] og [1] direkte fra listen
                     lng = float(koordinater[0])
                     lat = float(koordinater[1])
                     st.session_state.coords = [lat, lng]
@@ -94,7 +93,6 @@ if st.session_state.beregnet and st.session_state.bbr:
     
     st.subheader("📱 QR-kode til din bil")
     hoved_hjemmeside = "https://streamlit.app"
-    qr.add_data(hoved_hjemmeside)
     
     qr = QRCode(version=1, box_size=10, border=4)
     qr.add_data(hoved_hjemmeside)
@@ -107,9 +105,9 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.image(buf.getvalue(), caption="Scan QR-koden for at gå til prisberegneren")
     
     st.download_button(
-    label="⬇️ Download QR-kode",
-    data=buf.getvalue(),
-    file_name="vinduespudsning_hjemmeside_qr.png",
-    mime="image/png",
-    key="qr_download"
+        label="⬇️ Download QR-kode",
+        data=buf.getvalue(),
+        file_name="vinduespudsning_hjemmeside_qr.png",
+        mime="image/png",
+        key="qr_download"
     )
