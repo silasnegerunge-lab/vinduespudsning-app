@@ -1,4 +1,3 @@
-
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
@@ -51,7 +50,7 @@ if st.session_state.beregnet:
         st.metric("Udvendig pudsning", f"{st.session_state.pris_ude:,} kr")
     with col2:
         st.metric("Ude + Indvendig", f"{int(st.session_state.pris_begge):,} kr")
-    
+        
     st.subheader("BBR-oplysninger")
     st.json(st.session_state.bbr)
     
@@ -60,21 +59,6 @@ if st.session_state.beregnet:
     st_folium(m, width=700, height=300, key="kort_visning")
     
     st.subheader("📱 QR-kode til bilen")
-    qr_data = f"Vinduespudsning tilbud\nAdresse: {st.session_state.bbr['adresse']}\nEst. pris ude: {st.session_state.pris_ude} kr"
-    
-    qr = QRCode(version=1, box_size=10, border=4)
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    st.image(buf.getvalue(), caption="Scan for tilbud")
-    
-# https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/
-    qr_link = "https://streamlit.app"
-    
-     st.subheader("📱 QR-kode til bilen")
     qr_data = "https://streamlit.app"
     
     qr = QRCode(version=1, box_size=10, border=4)
