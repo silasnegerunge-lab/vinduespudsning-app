@@ -74,6 +74,10 @@ if st.session_state.beregnet:
 # https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/
     qr_link = "https://streamlit.app"
     
-    qr = QRCode(version=1, box_size=10, border=4)
+    st.subheader("📱 QR-kode til bilen")
+qr_data = "https://streamlit.app"
     qr.add_data(qr_link)
     qr.make(fit=True)
+
+st.subheader("📱 QR-kode til bilen")
+qr_data = f"Vinduespudsning tilbud\nAdresse: {st.session_state.bbr['adresse']}\nEst. pris ude: {st.session_state.pris_ude} kr"
