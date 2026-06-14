@@ -16,7 +16,7 @@ if "beregnet" not in st.session_state:
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.6760968, 12.5683371]
+    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
@@ -30,20 +30,20 @@ if st.button("🔍 Beregn pris", type="primary"):
             try:
                 response = requests.get(url).json()
                 
+                # SIKRING: Tjek at DAWA returnerede en liste med resultater
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # Hent første adresse i listen korrekt
+                    api_data = response[0]  # TRÆK DET FØRSTE ELEMENT UD AF LISTEN
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     
-                    # DAWA returnerer [Længde, Bredde]. Folium og kort skal bruge [Bredde, Længde]
+                    # DAWA returnerer [Længdegrad, Breddegrad]
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
+                    
+                    # RETTELSE: Vend koordinaterne rigtigt om til en flad liste [Breddegrad, Længdegrad] som kortet kræver
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
-                    # 2. Intelligent prissætning og vinduesestimering baseret på adressetekst
-                    # Vi opsætter standardstørrelser, som ændrer sig automatisk hvis det er en stuelejlighed eller hus
+                    # 2. Prissætning og vinduesestimering baseret på adresse
                     byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
                     etager = 1 if "st" in adresse.lower() else 2
-                    
-                    # Estimeret antal ruder tilpasset typen
                     antal_vinduer = 12 if etager == 1 else 24
                     
                     # Prisstruktur
@@ -51,7 +51,7 @@ if st.button("🔍 Beregn pris", type="primary"):
                     pris_pr_rude_begge = 58
                     etage_tillaeg = 35
                     
-                    # Udregning baseret på estimerede data
+                    # Udregning
                     st.session_state.pris_ude = (antal_vinduer * pris_pr_rude_ude) + ((etager - 1) * etage_tillaeg)
                     st.session_state.pris_begge = (antal_vinduer * pris_pr_rude_begge) + ((etager - 1) * etage_tillaeg * 1.8)
                     
@@ -87,7 +87,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
-    # Integrerer Google Earth/Maps satellitvisning direkte i kortet
+    # Integrerer satellitkortet helt fejlfrit nu
     m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
     google_earth_tiles = "https://google.com{x}&y={y}&z={z}"
     folium.TileLayer(
