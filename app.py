@@ -30,15 +30,16 @@ if st.button("🔍 Beregn pris", type="primary"):
             try:
                 response = requests.get(url).json()
                 
-                if response and len(response) > 0:
-                    api_data = response[0]
+                # SIKRING: Tjek at DAWA faktisk fandt og returnerede en liste med adresser
+                if response and isinstance(response, list) and len(response) > 0:
+                    api_data = response[0]  # Tag fat i den første og mest præcise adresse på listen
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # DAWA returnerer [længdegrad, breddegrad]. Folium skal bruge [breddegrad, længdegrad]
+                    # DAWA sender [længdegrad, breddegrad]. Folium kræver [breddegrad, længdegrad] -> Vend dem om!
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
-                    # 2. Opsæt data baseret på adressen
+                    # 2. Opsæt data baseret på den officielle adressebetegnelse
                     st.session_state.bbr = {
                         "adresse": api_data.get("adressebetegnelse", adresse),
                         "bygningsareal": 142,
@@ -61,7 +62,7 @@ if st.button("🔍 Beregn pris", type="primary"):
                     st.error("Kunne ikke finde adressen i systemet. Tjek venligst stavningen.")
                     st.session_state.beregnet = False
             except Exception as e:
-                st.error("Der opstod en fejl under hentning af adressedata.")
+                st.error("Der opstod en systemfejl ved indlæsning af adressedata.")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
