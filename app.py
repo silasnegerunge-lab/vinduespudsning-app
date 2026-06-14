@@ -101,15 +101,15 @@ if st.session_state.beregnet and st.session_state.bbr:
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     
-   buf = BytesIO()
-   img.save(buf, format="PNG")
-   buf.seek(0)  # ← Add this
-   st.image(buf.getvalue(), ...)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    st.image(buf.getvalue(), caption="Scan QR-koden for at gå til prisberegneren")
     
     st.download_button(
-        label="⬇️ Download QR-kode",
-        data=buf.getvalue(),
-        file_name="vinduespudsning_hjemmeside_qr.png",
-        mime="image/png",
-        key="qr_download"
+    label="⬇️ Download QR-kode",
+    data=buf.getvalue(),
+    file_name="vinduespudsning_hjemmeside_qr.png",
+    mime="image/png",
+    key="qr_download"
     )
