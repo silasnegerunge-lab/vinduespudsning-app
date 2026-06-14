@@ -92,7 +92,8 @@ if st.session_state.beregnet and st.session_state.bbr:
     st_folium(m, width=700, height=350, key="google_earth_visning")
     
     st.subheader("📱 QR-kode til din bil")
-    hoved_hjemmeside = "https://streamlit.app"
+    # ✅ QR-koden peger nu på din rigtige Streamlit app
+    hoved_hjemmeside = "https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/"
     
     qr = QRCode(version=1, box_size=10, border=4)
     qr.add_data(hoved_hjemmeside)
