@@ -23,7 +23,7 @@ if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
         with st.spinner("Slår adresse op..."):
             sikker_adresse = urllib.parse.quote(adresse)
-            url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
+            url = f"https://dataforsyningen.dk/rest/adresser?q={sikker_adresse}&per_side=1"
             
             try:
                 response = requests.get(url).json()
@@ -81,7 +81,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
     m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
-    google_earth_tiles = "https://google.com{x}&y={y}&z={z}"
+    google_earth_tiles = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
     folium.TileLayer(
         tiles=google_earth_tiles,
         attr="Google",
@@ -94,15 +94,17 @@ if st.session_state.beregnet and st.session_state.bbr:
     
     st.subheader("📱 QR-kode til din bil")
     hoved_hjemmeside = "https://streamlit.app"
+    qr.add_data(hoved_hjemmeside)
     
     qr = QRCode(version=1, box_size=10, border=4)
     qr.add_data(hoved_hjemmeside)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    st.image(buf.getvalue(), caption="Scan QR-koden for at gå til prisberegneren")
+   buf = BytesIO()
+   img.save(buf, format="PNG")
+   buf.seek(0)  # ← Add this
+   st.image(buf.getvalue(), ...)
     
     st.download_button(
         label="⬇️ Download QR-kode",
