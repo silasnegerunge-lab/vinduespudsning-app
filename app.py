@@ -29,18 +29,16 @@ if st.button("🔍 Beregn pris", type="primary"):
             try:
                 response = requests.get(url).json()
                 
+                # SIKRING: Tjek at DAWA returnerede en liste med resultater
                 if response and isinstance(response, list) and len(response) > 0:
-                    # Hent det første adresse-hit
-                    api_data = response[0] 
-                    
-                    # RETTELSE: Hent koordinaterne direkte fra DAWAs struktur via adgangsadresse
+                    # NY FEJLSIKKER GENVEJ: pop(0) hiver den første adresse ud, så mit system ikke kan slette noget
+                    api_data = response.pop(0)
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # DAWA er [Længde, Bredde]. Folium skal bruge [Bredde, Længde]. 
-                    # Vi trækker dem ud med præcis indeks-nummerering, så det ALDRIG fejler.
-                    lng = float(koordinater[0])
-                    lat = float(koordinater[1])
+                    # DAWA er [Længde, Bredde]. Vi trækker dem ud via pop(0) så de lander fejlfrit som [Bredde, Længde] til Folium
+                    lng = float(koordinater.pop(0))
+                    lat = float(koordinater.pop(0))
                     st.session_state.coords = [lat, lng]
                     
                     byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
