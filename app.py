@@ -72,9 +72,11 @@ if st.session_state.beregnet:
     st.image(buf.getvalue(), caption="Scan for tilbud")
     
     st.download_button(
-        label=⬇️ Download QR-kode",
-        data=buf.getvalue(),
-        file_name="qr_kode.png",
-        mime="image/png",
-        key="qr_download"
+    label=" ⬇️ Download QR-kode",
+    data=buf.getvalue(),
+    file_name="qr_kode.png",
+    mime="image/png",
+    key="qr_download"
+)
+
     )
