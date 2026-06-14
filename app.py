@@ -37,9 +37,35 @@ if st.button("🔍 Beregn pris", type="primary"):
                     lat = float(koordinater[1])
                     st.session_state.coords = [lat, lng]
                     
-                    byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
-                    etager = 1 if "st" in adresse.lower() else 2
-                    antal_vinduer = 12 if etager == 1 else 24
+                    # ✅ Hent BBR-data (ejendomsdata) fra API'et
+                    bbr_id = api_data.get("id", None)
+                    etager = 2  # Standard værdi hvis BBR ikke findes
+                    byg_type = "Parcelhus"  # Standard værdi
+                    
+                    if bbr_id:
+                        try:
+                            # Hent BBR-data baseret på adresse-ID
+                            bbr_url = f"https://api.dataforsyningen.dk/bbr-data/{bbr_id}"
+                            bbr_response = requests.get(bbr_url).json()
+                            
+                            if bbr_response:
+                                # Hent etageantal fra BBR
+                                etager = bbr_response.get("etager", 2)
+                                
+                                # Hent bygningstype
+                                bygn_type = bbr_response.get("bygningstype", 0)
+                                if bygn_type in [110, 111, 112]:  # Enfamiliehus
+                                    byg_type = "Parcelhus"
+                                elif bygn_type in [120, 121]:  # Tofamiliehus
+                                    byg_type = "Tofamiliehus"
+                                else:
+                                    byg_type = "Erhverv / Lejlighed"
+                        except:
+                            # Hvis BBR-opslag fejler, brug standard værdier
+                            pass
+                    
+                    # Beregn antal vinduer baseret på etager
+                    antal_vinduer = 12 if etager == 1 else (12 * etager)
                     
                     pris_pr_rude_ude = 28
                     pris_pr_rude_begge = 58
@@ -92,7 +118,6 @@ if st.session_state.beregnet and st.session_state.bbr:
     st_folium(m, width=700, height=350, key="google_earth_visning")
     
     st.subheader("📱 QR-kode til din bil")
-    # ✅ QR-koden peger nu på din rigtige Streamlit app
     hoved_hjemmeside = "https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/"
     
     qr = QRCode(version=1, box_size=10, border=4)
