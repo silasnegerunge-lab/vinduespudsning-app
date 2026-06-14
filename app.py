@@ -33,6 +33,7 @@ if st.button("🔍 Beregn pris", type="primary"):
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
+                    # HER ER DEN RIGTIGE RETTELSE: Vi henter tallene via rå indeks [0] og [1] direkte fra listen
                     lng = float(koordinater[0])
                     lat = float(koordinater[1])
                     st.session_state.coords = [lat, lng]
