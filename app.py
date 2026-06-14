@@ -10,12 +10,13 @@ st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
 st.write("Indtast din adresse for at få prisestimat og satellitvisning")
 
+# Opret appens hukommelse, hvis den ikke findes
 if "beregnet" not in st.session_state:
     st.session_state.beregnet = False
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.6760968, 12.5683371]
+    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
@@ -29,13 +30,18 @@ if st.button("🔍 Beregn pris", type="primary"):
                 response = requests.get(url).json()
                 
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = next(iter(response))
+                    # Hent det første adresse-hit
+                    api_data = response[0] 
+                    
+                    # RETTELSE: Hent koordinaterne direkte fra DAWAs struktur via adgangsadresse
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # HER ER DEN FEJLSIKRE RETTELSE:
-                    # Vi bruger list(reversed(...)) til at vende [Længde, Bredde] om til [Bredde, Længde] uden usikre tegn.
-                    st.session_state.coords = list(reversed(koordinater))
+                    # DAWA er [Længde, Bredde]. Folium skal bruge [Bredde, Længde]. 
+                    # Vi trækker dem ud med præcis indeks-nummerering, så det ALDRIG fejler.
+                    lng = float(koordinater[0])
+                    lat = float(koordinater[1])
+                    st.session_state.coords = [lat, lng]
                     
                     byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
                     etager = 1 if "st" in adresse.lower() else 2
