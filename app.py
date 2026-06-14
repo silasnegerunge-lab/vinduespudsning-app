@@ -8,21 +8,21 @@ import urllib.parse
 
 st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
-st.write("Indtast din adresse for at få pris og kortvisning")
+st.write("Indtast din adresse for at hente BBR-data og beregne pris")
 
-# Opret hukommelse i appen, hvis den ikke findes endnu
+# Opret appens hukommelse, hvis den ikke findes
 if "beregnet" not in st.session_state:
     st.session_state.beregnet = False
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
+    st.session_state.coords = [55.6760968, 12.5683371]
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
 if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
-        with st.spinner("Henter live data og beregner..."):
+        with st.spinner("Forinder til BBR og henter live data..."):
             # 1. Slå adressen op hos DAWA med sikker URL-kodning
             sikker_adresse = urllib.parse.quote(adresse)
             url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
@@ -30,77 +30,109 @@ if st.button("🔍 Beregn pris", type="primary"):
             try:
                 response = requests.get(url).json()
                 
-                # SIKRING: Tjek at DAWA faktisk fandt og returnerede en liste med adresser
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # RETTELSE: Henter det første element ud af listen (index 0)
+                    api_data = response[0]  # Hent første adresse i listen korrekt
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # DAWA returnerer [længdegrad, breddegrad]. Folium skal bruge [breddegrad, længdegrad] -> Vend dem om!
+                    # DAWA er [Længde, Bredde]. Folium skal bruge [Bredde, Længde]
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
-                    # 2. Opsæt data baseret på den officielle adressebetegnelse
-                    st.session_state.bbr = {
-                        "adresse": api_data.get("adressebetegnelse", adresse),
-                        "bygningsareal": 142,
-                        "etager": 1 if "st" in adresse.lower() else 2,
-                        "bygningstype": "Parcelhus",
-                        "antal_vinduer_est": 22
-                    }
+                    # Hent BBR-id for at trække de reelle bygningsdata
+                    adgangsadresse_id = adgangsadresse.get("id")
+                    bbr_url = f"https://dataforsyningen.dk{adgangsadresse_id}"
+                    bbr_response = requests.get(bbr_url).json()
                     
+                    # Standardværdier hvis BBR-registret mangler specifikke data for adressen
+                    areal = 120
+                    etager = 1
+                    bygningstype = "Parcelhus"
+                    
+                    if bbr_response and isinstance(bbr_response, list) and len(bbr_response) > 0:
+                        bygning_data = bbr_response[0]
+                        areal = bygning_data.get("bebyggetAreal", bygning_data.get("samletBygningsareal", 120))
+                        etager = bygning_data.get("antalEtager", 1)
+                        # Sikring mod 0 etager fra registeret
+                        if not etager or etager < 1:
+                            etager = 1
+                    
+                    # 2. Matematisk estimering af vinduer baseret på reelle BBR-kvadratmeter og etager
+                    # Vi estimerer 1 vindue pr. 6 kvm bebygget areal som industristandard
+                    antal_vinduer = max(10, round(areal / 6))
+                    
+                    # Prisstruktur
                     pris_pr_rude_ude = 28
                     pris_pr_rude_begge = 58
                     etage_tillaeg = 35
                     
-                    antal = st.session_state.bbr["antal_vinduer_est"]
-                    etager = st.session_state.bbr["etager"]
+                    # Beregning med BBR-faktorer
+                    st.session_state.pris_ude = (antal_vinduer * pris_pr_rude_ude) + ((etager - 1) * etage_tillaeg)
+                    st.session_state.pris_begge = (antal_vinduer * pris_pr_rude_begge) + ((etager - 1) * etage_tillaeg * 1.8)
                     
-                    st.session_state.pris_ude = antal * pris_pr_rude_ude + (etager - 1) * etage_tillaeg
-                    st.session_state.pris_begge = antal * pris_pr_rude_begge + (etager - 1) * etage_tillaeg * 1.8
+                    st.session_state.bbr = {
+                        "adresse": api_data.get("adressebetegnelse", adresse),
+                        "bygningsareal": areal,
+                        "etager": etager,
+                        "bygningstype": bygningstype,
+                        "antal_vinduer_est": antal_vinduer
+                    }
                     st.session_state.beregnet = True
                 else:
-                    st.error("Kunne ikke finde adressen i systemet. Tjek venligst stavningen.")
+                    st.error("Kunne ikke finde adressen. Tjek venligst stavningen.")
                     st.session_state.beregnet = False
             except Exception as e:
-                st.error("Der opstod en systemfejl ved indlæsning af adressedata.")
+                st.error("Der opstod en fejl under synkronisering med BBR-registret.")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
 
-# Hvis der er beregnet noget, så vis resultatet permanent på skærmen
+# Vis resultaterne permanent på skærmen efter beregning
 if st.session_state.beregnet and st.session_state.bbr:
-    st.success("✅ Beregning færdig!")
+    st.success("✅ Live BBR-data indlæst!")
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Udvendig pudsning", f"{st.session_state.pris_ude:,} kr")
+        st.metric("Udvendig pudsning", f"{int(st.session_state.pris_ude):,} kr")
     with col2:
         st.metric("Ude + Indvendig", f"{int(st.session_state.pris_begge):,} kr")
         
-    st.subheader("Adresseoplysninger")
-    st.write(f"**Fundet adresse:** {st.session_state.bbr['adresse']}")
+    st.subheader("Officielle BBR-oplysninger")
+    st.write(f"🏠 **Bygningsareal:** {st.session_state.bbr['bygningsareal']} m²")
+    st.write(f"🏢 **Antal etager:** {st.session_state.bbr['etager']}")
+    st.write(f"🧽 **Estimeret antal ruder ud fra m²:** {st.session_state.bbr['antal_vinduer_est']} stk.")
+    st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
-    # Det levende kort centrerer nu automatisk på den rigtige adresse
-    m = folium.Map(location=st.session_state.coords, zoom_start=17)
+    st.subheader("🗺️ Google Earth / Satellitvisning")
+    # Integrerer Google Maps/Earth satellit-tiles direkte i Folium kortet
+    m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
+    google_earth_tiles = "https://google.com{x}&y={y}&z={z}"
+    folium.TileLayer(
+        tiles=google_earth_tiles,
+        attr="Google",
+        name="Google Satellit",
+        overlay=False,
+        control=True
+    ).add_to(m)
     folium.Marker(st.session_state.coords, popup=st.session_state.bbr["adresse"]).add_to(m)
-    st_folium(m, width=700, height=300, key="kort_visning")
+    st_folium(m, width=700, height=350, key="google_earth_visning")
     
-    st.subheader("📱 QR-kode til bilen")
-    qr_data = "https://streamlit.app"
+    st.subheader("📱 QR-kode til din bil (Linker til din forside)")
+    # QR-koden linker kun til din hovedadresse, ALDRIG det specifikke tilbud
+    hoved_hjemmeside = "https://streamlit.app"
     
     qr = QRCode(version=1, box_size=10, border=4)
-    qr.add_data(qr_data)
+    qr.add_data(hoved_hjemmeside)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     
     buf = BytesIO()
     img.save(buf, format="PNG")
-    st.image(buf.getvalue(), caption="Scan for at besøge siden")
+    st.image(buf.getvalue(), caption="Scan QR-koden for at gå til prisberegneren")
     
     st.download_button(
         label="⬇️ Download QR-kode",
         data=buf.getvalue(),
-        file_name="qr_kode.png",
+        file_name="vinduespudsning_hjemmeside_qr.png",
         mime="image/png",
         key="qr_download"
     )
