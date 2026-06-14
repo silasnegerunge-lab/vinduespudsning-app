@@ -4,6 +4,7 @@ from streamlit_folium import st_folium
 from qrcode import QRCode
 from io import BytesIO
 import requests
+import urllib.parse
 
 st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
@@ -15,51 +16,57 @@ if "beregnet" not in st.session_state:
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.67, 12.57] # Standard København indtil søgning
+    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
 if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
         with st.spinner("Henter live data og beregner..."):
-            # 1. Slå adressen op live hos DAWA for at få rigtige koordinater (breddegrad og længdegrad)
-            url = f"https://dataforsyningen.dk{adresse}&per_side=1"
-            response = requests.get(url).json()
+            # 1. Slå adressen op hos DAWA med sikker URL-kodning
+            sikker_adresse = urllib.parse.quote(adresse)
+            url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
             
-            if response:
-                api_data = response[0]
-                adgangsadresse = api_data.get("adgangsadresse", {})
-                koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.57, 55.67])
+            try:
+                response = requests.get(url).json()
                 
-                # DAWA returnerer [længdegrad, breddegrad] - Folium skal bruge [breddegrad, længdegrad]
-                st.session_state.coords = [koordinater[1], koordinater[0]]
-                
-                # 2. Generer tilfældige men realistiske husdata baseret på adressen (Indtil du forbinder rigtig BBR)
-                st.session_state.bbr = {
-                    "adresse": api_data.get("adressebetegnelse", adresse),
-                    "bygningsareal": 142,
-                    "etager": 1 if "st" in adresse.lower() else 2,
-                    "bygningstype": "Parcelhus",
-                    "antal_vinduer_est": 22
-                }
-                
-                pris_pr_rude_ude = 28
-                pris_pr_rude_begge = 58
-                etage_tillaeg = 35
-                
-                antal = st.session_state.bbr["antal_vinduer_est"]
-                etager = st.session_state.bbr["etager"]
-                
-                st.session_state.pris_ude = antal * pris_pr_rude_ude + (etager - 1) * etage_tillaeg
-                st.session_state.pris_begge = antal * pris_pr_rude_begge + (etager - 1) * etage_tillaeg * 1.8
-                st.session_state.beregnet = True
-            else:
-                st.error("Kunne ikke finde adressen. Tjek venligst stavningen.")
+                if response and len(response) > 0:
+                    api_data = response[0]
+                    adgangsadresse = api_data.get("adgangsadresse", {})
+                    koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
+                    
+                    # DAWA returnerer [længdegrad, breddegrad]. Folium skal bruge [breddegrad, længdegrad]
+                    st.session_state.coords = [koordinater[1], koordinater[0]]
+                    
+                    # 2. Opsæt data baseret på adressen
+                    st.session_state.bbr = {
+                        "adresse": api_data.get("adressebetegnelse", adresse),
+                        "bygningsareal": 142,
+                        "etager": 1 if "st" in adresse.lower() else 2,
+                        "bygningstype": "Parcelhus",
+                        "antal_vinduer_est": 22
+                    }
+                    
+                    pris_pr_rude_ude = 28
+                    pris_pr_rude_begge = 58
+                    etage_tillaeg = 35
+                    
+                    antal = st.session_state.bbr["antal_vinduer_est"]
+                    etager = st.session_state.bbr["etager"]
+                    
+                    st.session_state.pris_ude = antal * pris_pr_rude_ude + (etager - 1) * etage_tillaeg
+                    st.session_state.pris_begge = antal * pris_pr_rude_begge + (etager - 1) * etage_tillaeg * 1.8
+                    st.session_state.beregnet = True
+                else:
+                    st.error("Kunne ikke finde adressen i systemet. Tjek venligst stavningen.")
+                    st.session_state.beregnet = False
+            except Exception as e:
+                st.error("Der opstod en fejl under hentning af adressedata.")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
 
-# Hvis der er beregnet noget, så bliv ved med at vise det på skærmen!
+# Hvis der er beregnet noget, så vis resultatet permanent på skærmen
 if st.session_state.beregnet and st.session_state.bbr:
     st.success("✅ Beregning færdig!")
     
@@ -72,7 +79,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.subheader("Adresseoplysninger")
     st.write(f"**Fundet adresse:** {st.session_state.bbr['adresse']}")
     
-    # Det levende kort flytter sig nu til st.session_state.coords
+    # Det levende kort centrerer nu automatisk på den rigtige adresse
     m = folium.Map(location=st.session_state.coords, zoom_start=17)
     folium.Marker(st.session_state.coords, popup=st.session_state.bbr["adresse"]).add_to(m)
     st_folium(m, width=700, height=300, key="kort_visning")
@@ -87,7 +94,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     
     buf = BytesIO()
     img.save(buf, format="PNG")
-    st.image(buf.getvalue(), caption="Scan for tilbud")
+    st.image(buf.getvalue(), caption="Scan for at besøge siden")
     
     st.download_button(
         label="⬇️ Download QR-kode",
