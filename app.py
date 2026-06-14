@@ -23,7 +23,7 @@ if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
         with st.spinner("Slår adresse op og beregner..."):
             sikker_adresse = urllib.parse.quote(adresse)
-            url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
+            url = https://dataforsyningen.dk{sikker_adresse}&per_side=1
             
             try:
                 response = requests.get(url).json()
