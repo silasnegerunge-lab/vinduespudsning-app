@@ -32,13 +32,13 @@ if st.button("🔍 Beregn pris", type="primary"):
                 
                 # SIKRING: Tjek at DAWA returnerede en liste med resultater
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # TRÆK DET FØRSTE ELEMENT UD AF LISTEN
+                    api_data = response[0]  # HER VAR FEJLEN: Hent det første rigtige element ud af listen via!
                     adgangsadresse = api_data.get("adgangsadresse", {})
                     
                     # DAWA returnerer [Længdegrad, Breddegrad]
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # RETTELSE: Vend koordinaterne rigtigt om til en flad liste [Breddegrad, Længdegrad] som kortet kræver
+                    # Vend koordinaterne rigtigt om til en flad liste [Breddegrad, Længdegrad] som kortet kræver
                     st.session_state.coords = [koordinater[1], koordinater[0]]
                     
                     # 2. Prissætning og vinduesestimering baseret på adresse
@@ -87,7 +87,7 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
-    # Integrerer satellitkortet helt fejlfrit nu
+    # Integrerer satellitkortet fejlfrit
     m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
     google_earth_tiles = "https://google.com{x}&y={y}&z={z}"
     folium.TileLayer(
