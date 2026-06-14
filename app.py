@@ -1,4 +1,4 @@
-import streamlit as st
+pythonimport streamlit as st
 import folium
 from streamlit_folium import st_folium
 from qrcode import QRCode
@@ -10,48 +10,41 @@ st.set_page_config(page_title="Vinduespudsning Beregner", layout="centered")
 st.title("🚗 Vinduespudsning Prisberegner")
 st.write("Indtast din adresse for at få prisestimat og satellitvisning")
 
-# Opret appens hukommelse, hvis den ikke findes
 if "beregnet" not in st.session_state:
     st.session_state.beregnet = False
     st.session_state.bbr = None
     st.session_state.pris_ude = 0
     st.session_state.pris_begge = 0
-    st.session_state.coords = [55.6760968, 12.5683371] # Standard København
+    st.session_state.coords = [55.6760968, 12.5683371]
 
 adresse = st.text_input("Adresse", placeholder="f.eks. Rosenvej 12, 2800 Lyngby")
 
 if st.button("🔍 Beregn pris", type="primary"):
     if adresse:
         with st.spinner("Slår adresse op og beregner..."):
-            # 1. Slå adressen op hos DAWA med sikker URL-kodning
             sikker_adresse = urllib.parse.quote(adresse)
             url = f"https://dataforsyningen.dk{sikker_adresse}&per_side=1"
             
             try:
                 response = requests.get(url).json()
                 
-                # SIKRING: Tjek at DAWA returnerede en liste med resultater
                 if response and isinstance(response, list) and len(response) > 0:
-                    api_data = response[0]  # HER VAR FEJLEN: Hent det første rigtige element ud af listen via!
+                    api_data = next(iter(response))
                     adgangsadresse = api_data.get("adgangsadresse", {})
-                    
-                    # DAWA returnerer [Længdegrad, Breddegrad]
                     koordinater = adgangsadresse.get("adgangspunkt", {}).get("koordinater", [12.5683371, 55.6760968])
                     
-                    # Vend koordinaterne rigtigt om til en flad liste [Breddegrad, Længdegrad] som kortet kræver
-                    st.session_state.coords = [koordinater[1], koordinater[0]]
+                    # HER ER DEN FEJLSIKRE RETTELSE:
+                    # Vi bruger list(reversed(...)) til at vende [Længde, Bredde] om til [Bredde, Længde] uden usikre tegn.
+                    st.session_state.coords = list(reversed(koordinater))
                     
-                    # 2. Prissætning og vinduesestimering baseret på adresse
                     byg_type = "Erhverv / Lejlighed" if "st" in adresse.lower() or "th" in adresse.lower() else "Parcelhus"
                     etager = 1 if "st" in adresse.lower() else 2
                     antal_vinduer = 12 if etager == 1 else 24
                     
-                    # Prisstruktur
                     pris_pr_rude_ude = 28
                     pris_pr_rude_begge = 58
                     etage_tillaeg = 35
                     
-                    # Udregning
                     st.session_state.pris_ude = (antal_vinduer * pris_pr_rude_ude) + ((etager - 1) * etage_tillaeg)
                     st.session_state.pris_begge = (antal_vinduer * pris_pr_rude_begge) + ((etager - 1) * etage_tillaeg * 1.8)
                     
@@ -66,12 +59,11 @@ if st.button("🔍 Beregn pris", type="primary"):
                     st.error("Kunne ikke finde adressen. Tjek venligst stavningen.")
                     st.session_state.beregnet = False
             except Exception as e:
-                st.error("Der opstod en systemfejl under indlæsning.")
+                st.error("Der opstod en fejl under indlæsning af adressedata.")
                 st.session_state.beregnet = False
     else:
         st.error("Indtast venligst en adresse")
 
-# Vis resultaterne permanent på skærmen efter beregning
 if st.session_state.beregnet and st.session_state.bbr:
     st.success("✅ Prisberegning fuldført!")
     
@@ -87,7 +79,6 @@ if st.session_state.beregnet and st.session_state.bbr:
     st.write(f"📍 **Adresse:** {st.session_state.bbr['adresse']}")
     
     st.subheader("🗺️ Google Earth / Satellitvisning")
-    # Integrerer satellitkortet fejlfrit
     m = folium.Map(location=st.session_state.coords, zoom_start=19, max_zoom=22)
     google_earth_tiles = "https://google.com{x}&y={y}&z={z}"
     folium.TileLayer(
