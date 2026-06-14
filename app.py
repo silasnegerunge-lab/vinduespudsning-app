@@ -74,10 +74,22 @@ if st.session_state.beregnet:
 # https://vinduespudsning-app-elrcdizplonssjmnempviq.streamlit.app/
     qr_link = "https://streamlit.app"
     
-    st.subheader("📱 QR-kode til bilen")
-qr_data = "https://streamlit.app"
-    qr.add_data(qr_link)
+     st.subheader("📱 QR-kode til bilen")
+    qr_data = "https://streamlit.app"
+    
+    qr = QRCode(version=1, box_size=10, border=4)
+    qr.add_data(qr_data)
     qr.make(fit=True)
-
-st.subheader("📱 QR-kode til bilen")
-qr_data = f"Vinduespudsning tilbud\nAdresse: {st.session_state.bbr['adresse']}\nEst. pris ude: {st.session_state.pris_ude} kr"
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    st.image(buf.getvalue(), caption="Scan for tilbud")
+    
+    st.download_button(
+        label="⬇️ Download QR-kode",
+        data=buf.getvalue(),
+        file_name="qr_kode.png",
+        mime="image/png",
+        key="qr_download"
+    )
