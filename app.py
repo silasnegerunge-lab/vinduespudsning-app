@@ -74,9 +74,9 @@ if st.button("🔍 Beregn pris", type="primary"):
                     pris_ude_temp = (antal_vinduer * pris_pr_rude_ude) + ((etager - 1) * etage_tillaeg)
                     pris_begge_temp = (antal_vinduer * pris_pr_rude_begge) + ((etager - 1) * etage_tillaeg * 1.8)
                     
-                    # ✅ HALVER PRISERNE
-                    st.session_state.pris_ude = pris_ude_temp / 2
-                    st.session_state.pris_begge = pris_begge_temp / 2
+                    # ✅ HALVER PRISERNE TO GANGE (1/4 af original)
+                    st.session_state.pris_ude = (pris_ude_temp / 2) / 2
+                    st.session_state.pris_begge = (pris_begge_temp / 2) / 2
                     
                     st.session_state.bbr = {
                         "adresse": api_data.get("adressebetegnelse", adresse),
