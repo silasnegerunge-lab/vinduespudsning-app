@@ -1,5 +1,4 @@
-pythonimport streamlit as st
-import folium
+import streamlit as stimport folium
 from streamlit_folium import st_folium
 from qrcode import QRCode
 from io import BytesIO
